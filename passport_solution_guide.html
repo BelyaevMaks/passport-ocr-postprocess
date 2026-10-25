@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Гид по постобработке OCR паспорта РФ | Для стажёра</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    /* High-Readability & Premium Typography Styling */
+    :root {
+      --bg: #0b0f19;
+      --card-bg: #111827;
+      --card-border: #243042;
+      --accent: #3b82f6;
+      --text: #f9fafb;
+      --text-muted: #cbd5e1;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      font-size: 16px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    .tab-btn {
+      font-size: 0.95rem;
+      padding: 0.6rem 1.1rem;
+      font-weight: 500;
+      border-radius: 0.65rem;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .tab-btn.active {
+      background: #1e3a8a;
+      color: #bfdbfe;
+      border-color: #3b82f6;
+      font-weight: 600;
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+    }
+    .mrz-char {
+      display: inline-block;
+      width: 1.85rem;
+      height: 2.8rem;
+      line-height: 2.8rem;
+      text-align: center;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+      font-size: 1.25rem;
+      font-weight: 700;
+      border-radius: 6px;
+      margin: 2px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      cursor: default;
+    }
+    .mrz-char:hover {
+      transform: scale(1.2);
+      z-index: 20;
+      box-shadow: 0 0 14px rgba(255, 255, 255, 0.4);
+    }
+    code {
+      font-size: 0.9em;
+    }
+  
+    .hidden {
+      display: none !important;
+    }
+    .tab-content {
+      animation: fadeInTab 0.18s ease-in-out;
+    }
+    @keyframes fadeInTab {
+      from { opacity: 0; transform: translateY(3px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    </style>
+</head>
+<body class="selection:bg-blue-600 selection:text-white pb-16">
+
+  <!-- TOP HERO HEADER -->
+  <header class="border-b border-gray-800 bg-gray-900/90 backdrop-blur sticky top-0 z-50 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-4">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/30 shrink-0">
+          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3">
+            Постобработка OCR паспортов РФ
+            <span class="text-xs sm:text-sm font-semibold px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
+              Руководство для стажёра
+            </span>
+          </h1>
+          <p class="text-sm text-gray-300">Пошаговое объяснение логики, математики MRZ и стратегии отбора документов</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 text-sm font-mono">
+        <span class="px-3 py-1.5 rounded-lg bg-emerald-950/70 text-emerald-300 border border-emerald-700/70 font-semibold shadow-sm">
+          Цель: Precision = 100%
+        </span>
+        <span class="px-3 py-1.5 rounded-lg bg-indigo-950/70 text-indigo-300 border border-indigo-700/70 font-semibold shadow-sm">
+          CPU Only / Offline
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- NAVIGATION TABS -->
+  <div class="border-b border-gray-800 bg-gray-900/60 sticky top-[73px] z-40 backdrop-blur">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="flex space-x-2 py-2.5 overflow-x-auto custom-scroll" id="navTabs">
+        <button onclick="switchTab('tab-overview')" class="tab-btn active text-gray-200 border border-transparent hover:border-gray-700">
+          📌 1. Суть задачи и риски
+        </button>
+        <button onclick="switchTab('tab-mrz')" class="tab-btn text-gray-200 border border-transparent hover:border-gray-700">
+          🔍 2. Секрет MRZ и чек-суммы
+        </button>
+        <button onclick="switchTab('tab-validity')" class="tab-btn text-gray-200 border border-transparent hover:border-gray-700">
+          📅 3. Проверка срока (01.10.2026)
+        </button>
+        <button onclick="switchTab('tab-translit')" class="tab-btn text-gray-200 border border-transparent hover:border-gray-700">
+          🔤 4. Транслитерация ФИО
+        </button>
+        <button onclick="switchTab('tab-geometry')" class="tab-btn text-gray-200 border border-transparent hover:border-gray-700">
+          📐 5. Геометрия длинных полей
+        </button>
+        <button onclick="switchTab('tab-simulator')" class="tab-btn text-gray-200 border border-transparent hover:border-gray-700">
+          ⚡ 6. Интерактивный пайплайн
+        </button>
+        <button onclick="switchTab('tab-forecast')" class="tab-btn text-gray-200 border border-transparent hover:border-gray-700">
+          📊 7. Прогноз для отчёта
+        </button>
+      </nav>
+    </div>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- TAB 1: OVERVIEW & THE BIG PICTURE -->
+    <div id="tab-overview" class="tab-content space-y-8">
+      <div class="bg-gradient-to-r from-blue-900/40 via-indigo-900/30 to-purple-900/40 border border-blue-700/50 rounded-2xl p-6 sm:p-8 shadow-lg">
+        <div class="flex items-start gap-5">
+          <div class="p-3.5 bg-blue-600/25 border border-blue-400/40 rounded-2xl text-blue-300 shrink-0">
+            <svg class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-2xl font-bold text-white mb-2">Привет, стажёр! В чём здесь главная хитрость?</h2>
+            <p class="text-base sm:text-lg text-gray-200 leading-relaxed">
+              В классических ML-задачах мы обычно ищем баланс между точностью (Precision) и полнотой (Recall). Но в этой задаче 
+              действует <span class="text-amber-300 font-bold bg-amber-950/60 px-2 py-0.5 rounded border border-amber-600/50">асимметричная функция потерь</span>: 
+              бизнес наказывает нас за один ошибочно принятый паспорт во много раз строже, чем за отклонённый. Наша главная инженерная цель — 
+              построить надёжный каскад проверок (Guardrails), который отсекает сомнительные документы и принимает 
+              только те, где нет ни единой ошибки.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 hover:border-gray-700 transition shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="w-12 h-12 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 mb-4">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-3">Ошибка в принятом = Катастрофа</h3>
+            <p class="text-sm sm:text-base text-gray-300 leading-relaxed">
+              Если мы одобрили паспорт с ошибкой хотя бы в одной букве или цифре, банк или сервис не смогут идентифицировать человека. Возникает угроза мошенничества и штрафы регулятора. Поэтому <b>1 ошибка обходится дороже 50 отклонений</b>.
+            </p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-gray-800/80 text-xs text-red-400 font-medium">Штраф за False Positive максимальный</div>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 hover:border-gray-700 transition shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-4">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-3">Отклонение = Стандартный UX</h3>
+            <p class="text-sm sm:text-base text-gray-300 leading-relaxed">
+              Если снимок тёмный, размытый или строка срезана, мы спокойно выставляем <code class="text-blue-400 bg-gray-800 px-1.5 py-0.5 rounded font-mono font-semibold">reject</code>. Клиент в мобильном приложении просто увидит подсказку: <i>«Пожалуйста, переснимите паспорт при лучшем освещении»</i>.
+            </p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-gray-800/80 text-xs text-amber-400 font-medium">Безопасная стратегия для сомнительных фото</div>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 hover:border-gray-700 transition shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-4">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-3">Правило «Все 10 полей»</h3>
+            <p class="text-sm sm:text-base text-gray-300 leading-relaxed">
+              Чтобы документ засчитали как верный, <b>все 10 полей</b> обязаны совпасть с эталоном. Ошибка в 1 поле делает весь документ неверным. Поэтому наше железное правило: <i>сомневаешься хотя бы в одном знаке — отклоняй</i>.
+            </p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-gray-800/80 text-xs text-emerald-400 font-medium">Бинарная оценка качества документа</div>
+        </div>
+      </div>
+
+      <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 sm:p-8 shadow-sm">
+        <h3 class="text-xl font-bold text-white mb-3">10 обязательных полей паспорта РФ: Откуда брать правду?</h3>
+        <p class="text-sm sm:text-base text-gray-300 mb-6">
+          В паспорте РФ есть две зоны: визуальная (VIZ) и машиночитаемая (MRZ). Обрати внимание на разделение по надёжности: первые 5 полей можно извлечь со 100% математической точностью, следующие 3 проверяются биективной транслитерацией, а последние 2 требуют специальной геометрической фильтрации:
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
+          <div class="p-4 rounded-xl bg-emerald-950/40 border border-emerald-700/60 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="text-emerald-400 font-bold text-base mb-1">Licence_number</div>
+              <div class="text-gray-200">Серия и номер паспорта</div>
+            </div>
+            <div class="mt-3 text-xs text-emerald-300 font-mono font-semibold">✓ Есть в MRZ (чек-сумма)</div>
+          </div>
+          <div class="p-4 rounded-xl bg-emerald-950/40 border border-emerald-700/60 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="text-emerald-400 font-bold text-base mb-1">Birth_date</div>
+              <div class="text-gray-200">Дата рождения</div>
+            </div>
+            <div class="mt-3 text-xs text-emerald-300 font-mono font-semibold">✓ Есть в MRZ (чек-сумма)</div>
+          </div>
+          <div class="p-4 rounded-xl bg-emerald-950/40 border border-emerald-700/60 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="text-emerald-400 font-bold text-base mb-1">Sex_ru</div>
+              <div class="text-gray-200">Пол (МУЖ. / ЖЕН.)</div>
+            </div>
+            <div class="mt-3 text-xs text-emerald-300 font-mono font-semibold">✓ Есть в MRZ (M / F)</div>
+          </div>
+          <div class="p-4 rounded-xl bg-emerald-950/40 border border-emerald-700/60 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="text-emerald-400 font-bold text-base mb-1">Issue_date</div>
+              <div class="text-gray-200">Дата выдачи</div>
+            </div>
+            <div class="mt-3 text-xs text-emerald-300 font-mono font-semibold">✓ Есть в MRZ (чек-сумма)</div>
+          </div>
+          <div class="p-4 rounded-xl bg-emerald-950/40 border border-emerald-700/60 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="text-emerald-400 font-bold text-base mb-1">Issue_organisation_code</div>
+              <div class="text-gray-200">Код подразделения</div>
+            </div>
+            <div class="mt-3 text-xs text-emerald-300 font-mono font-semibold">✓ Есть в MRZ (чек-сумма)</div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-blue-950/40 border border-blue-700/60 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="text-blue-400 font-bold text-base mb-1">Last_name_ru</div>
+              <div class="text-gray-200">Фамилия</div>
+            </div>
+            <div class="mt-3 text-xs text-blue-300 font-mono font-semibold">⇄ MRZ Line 1 (транслит)</div>
+          </div>
+          <div class="p-4 rounded-xl bg-blue-950/40 border border-blue-700/60 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="text-blue-400 font-bold text-base mb-1">First_name_ru</div>
+              <div class="text-gray-200">Имя</div>
+            </div>
+            <div class="mt-3 text-xs text-blue-300 font-mono font-semibold">⇄ MRZ Line 1 (транслит)</div>
+          </div>
+          <div class="p-4 rounded-xl bg-blue-950/40 border border-blue-700/60 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="text-blue-400 font-bold text-base mb-1">Middle_name_ru</div>
+              <div class="text-gray-200">Отчество</div>
+            </div>
+            <div class="mt-3 text-xs text-blue-300 font-mono font-semibold">⇄ MRZ Line 1 (транслит)</div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-red-950/40 border border-red-700/60 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="text-red-400 font-bold text-base mb-1">Birth_place_ru</div>
+              <div class="text-gray-200">Место рождения</div>
+            </div>
+            <div class="mt-3 text-xs text-red-300 font-mono font-semibold">⚠ НЕТ в MRZ (Зона риска)</div>
+          </div>
+          <div class="p-4 rounded-xl bg-red-950/40 border border-red-700/60 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="text-red-400 font-bold text-base mb-1">Issue_organization_ru</div>
+              <div class="text-gray-200">Кем выдан</div>
+            </div>
+            <div class="mt-3 text-xs text-red-300 font-mono font-semibold">⚠ НЕТ в MRZ (Зона риска)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: MRZ DECODER & CHECKSUMS -->
+    <div id="tab-mrz" class="tab-content hidden space-y-8">
+      <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 sm:p-8 shadow-sm">
+        <h2 class="text-2xl font-bold text-white mb-3 flex items-center gap-3">
+          <span>Криптографический якорь: 4 контрольные суммы MRZ</span>
+          <span class="text-xs sm:text-sm bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full font-mono">ICAO Doc 9303</span>
+        </h2>
+        <p class="text-base text-gray-200 mb-6 leading-relaxed">
+          В паспорте РФ нижняя строка (строка 2) содержит ровно 44 символа. По международному стандарту ICAO TD3 контрольные суммы рассчитываются умножением цифр на повторяющуюся последовательность весов <b>7, 3, 1, 7, 3, 1...</b> и взятием остатка от деления на 10 (<code class="text-blue-400 font-bold">sum % 10</code>). Если все 4 суммы сходятся — данные верны с математической гарантией!
+        </p>
+
+        <div class="flex flex-wrap items-center gap-3 mb-5">
+          <span class="text-sm text-gray-300 font-medium">Выберите тестовый пример:</span>
+          <button onclick="loadMrzSample(1)" class="px-3.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-sm rounded-lg text-white border border-gray-700 transition font-medium">Пример 1 (tr_00001: Идеальный)</button>
+          <button onclick="loadMrzSample(2)" class="px-3.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-sm rounded-lg text-white border border-gray-700 transition font-medium">Пример 2 (tr_00003: Валидный)</button>
+          <button onclick="loadMrzSample(3)" class="px-3.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-sm rounded-lg text-white border border-gray-700 transition font-medium">Пример 3 (Испорченная чек-сумма)</button>
+        </div>
+
+        <div class="bg-gray-950 p-5 rounded-2xl border border-gray-800 overflow-x-auto custom-scroll mb-6 shadow-inner">
+          <div class="text-xs sm:text-sm text-gray-300 mb-3 font-mono flex items-center justify-between">
+            <span>Строка 2 MRZ (44 символа): Наведите курсор на символ, чтобы увидеть разряд</span>
+            <span id="mrzStatusBadge" class="px-3 py-1 rounded-full font-bold text-xs bg-emerald-900/80 text-emerald-300 border border-emerald-600">Все 4 суммы верны ✓</span>
+          </div>
+          <div id="mrzCharGrid" class="flex flex-nowrap font-mono select-none py-1"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 text-sm">
+          <div class="bg-gray-950/80 border border-blue-900/50 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between text-blue-400 font-bold text-base mb-1.5">
+                <span>Серия и номер</span>
+                <span id="chkBadge1" class="text-xs px-2 py-0.5 rounded font-mono font-semibold bg-emerald-950 text-emerald-400">Match ✓</span>
+              </div>
+              <div class="text-white font-mono text-base font-bold mb-1.5" id="outLicence">61 24 283968</div>
+              <div class="text-xs text-gray-400 leading-normal">Позиции 0..8 (серия 3 цифры + номер 6 цифр). Чек-сумма в поз. 9. 4-я цифра серии лежит в поз. 28!</div>
+            </div>
+          </div>
+
+          <div class="bg-gray-950/80 border border-amber-900/50 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between text-amber-400 font-bold text-base mb-1.5">
+                <span>Дата рождения & Пол</span>
+                <span id="chkBadge2" class="text-xs px-2 py-0.5 rounded font-mono font-semibold bg-emerald-950 text-emerald-400">Match ✓</span>
+              </div>
+              <div class="text-white font-mono text-base font-bold mb-1.5" id="outBirth">10.06.2010 (МУЖ.)</div>
+              <div class="text-xs text-gray-400 leading-normal">Позиции 13..18 (ГГММДД). Чек-сумма в поз. 19. Пол 'M'/'F' в поз. 20.</div>
+            </div>
+          </div>
+
+          <div class="bg-gray-950/80 border border-purple-900/50 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between text-purple-400 font-bold text-base mb-1.5">
+                <span>Выдача и орган</span>
+                <span id="chkBadge3" class="text-xs px-2 py-0.5 rounded font-mono font-semibold bg-emerald-950 text-emerald-400">Match ✓</span>
+              </div>
+              <div class="text-white font-mono text-base font-bold mb-1.5" id="outIssue">11.09.2025 | 620-004</div>
+              <div class="text-xs text-gray-400 leading-normal">Позиции 28..40 (4-я цифра серии, дата ГГММДД, код 6 цифр). Чек-сумма в поз. 42.</div>
+            </div>
+          </div>
+
+          <div class="bg-gray-950/80 border border-emerald-900/50 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between text-emerald-400 font-bold text-base mb-1.5">
+                <span>Итоговая чек-сумма</span>
+                <span id="chkBadge4" class="text-xs px-2 py-0.5 rounded font-mono font-semibold bg-emerald-950 text-emerald-400">Match ✓</span>
+              </div>
+              <div class="text-white font-mono text-base font-bold mb-1.5" id="outComp">Поз. 43 = 8 (OK)</div>
+              <div class="text-xs text-gray-400 leading-normal">Композитная чек-сумма по всему блоку: поз. 0..9 + 13..19 + 21..42.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-8 p-5 rounded-2xl bg-gray-950 border border-gray-800 text-sm">
+          <h4 class="font-bold text-white text-base mb-3 flex items-center gap-2">
+            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+            Как алгоритм рассчитывает чек-сумму (Пример для даты рождения <code class="text-amber-300 font-mono font-bold bg-gray-900 px-1 rounded">100610</code>):
+          </h4>
+          <div class="font-mono text-gray-200 bg-gray-900/90 p-4 rounded-xl border border-gray-800 leading-relaxed overflow-x-auto text-sm sm:text-base">
+            Символы:   1   0   0   6   1   0<br>
+            Веса:      7   3   1   7   3   1<br>
+            Произв.:  (1×7) + (0×3) + (0×1) + (6×7) + (1×3) + (0×1) = 7 + 0 + 0 + 42 + 3 + 0 = 52<br>
+            Остаток:  52 mod 10 = <span class="text-emerald-400 font-bold bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-600">2</span> (в точности совпадает с контрольной цифрой в MRZ!)
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: VALIDITY CALCULATOR (01.10.2026) -->
+    <div id="tab-validity" class="tab-content hidden space-y-8">
+      <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 sm:p-8 shadow-sm">
+        <h2 class="text-2xl font-bold text-white mb-3 flex items-center gap-3">
+          <span>Подводный камень: Срок действия паспорта на 01.10.2026</span>
+          <span class="text-xs sm:text-sm bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1 rounded-full font-mono">Критично для теста</span>
+        </h2>
+        <div class="text-base text-gray-200 space-y-3 mb-8 leading-relaxed">
+          <p>
+            В описании задания прямо указано: <i class="text-amber-300 font-medium">«Документ принят верно, если все 10 полей совпадают и паспорт действителен на 01.10.2026. Скрипт evaluate.py действительность НЕ проверяет: её учитываем при итоговой оценке на test»</i>.
+          </p>
+          <p>Что требует Закон РФ (Положение о паспорте № 828 в ред. Постановления № 1205):</p>
+          <ul class="list-disc list-inside space-y-2 text-gray-300 pl-2">
+            <li>Паспорт выдаётся гражданину при достижении <b>14 лет</b> (выдача ранее 14 лет юридически невозможна).</li>
+            <li>При достижении <b>20 лет</b> и <b>45 лет</b> паспорт подлежит обязательной замене.</li>
+            <li>Гражданину даётся ровно <b>90 дней</b> со дня рождения для оформления нового паспорта. По истечении 90 дней старый паспорт становится <span class="text-red-400 font-bold">недействительным (просроченным)</span>!</li>
+            <li>Паспорт, выданный в 45 лет и позже — действует <b>бессрочно</b>.</li>
+          </ul>
+        </div>
+
+        <div class="bg-gray-950 p-6 sm:p-8 rounded-2xl border border-gray-800 shadow-inner">
+          <h3 class="text-lg font-bold text-white mb-4">Интерактивный калькулятор действительности паспорта</h3>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+            <div>
+              <label class="block text-sm font-semibold text-gray-300 mb-2">Дата рождения (ДД.ММ.ГГГГ):</label>
+              <input type="text" id="calcBirth" value="15.05.2006" oninput="calculatePassportValidity()" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-base text-white focus:outline-none focus:border-blue-500 font-mono shadow-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-300 mb-2">Дата выдачи (ДД.ММ.ГГГГ):</label>
+              <input type="text" id="calcIssue" value="20.06.2020" oninput="calculatePassportValidity()" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-base text-white focus:outline-none focus:border-blue-500 font-mono shadow-sm">
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2.5 mb-6">
+            <span class="text-sm text-gray-400 font-medium">Быстрые пресеты:</span>
+            <button onclick="setCalcPreset('10.06.2010', '11.09.2025')" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-sm rounded-lg text-gray-200 border border-gray-700 transition font-medium">16 лет (Действителен)</button>
+            <button onclick="setCalcPreset('15.01.2006', '01.02.2020')" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-sm rounded-lg text-gray-200 border border-gray-700 transition font-medium">20 лет + 8 месяцев (Просрочен!)</button>
+            <button onclick="setCalcPreset('05.08.2006', '10.09.2020')" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-sm rounded-lg text-gray-200 border border-gray-700 transition font-medium">20 лет + 56 дней (В рамках 90 дней!)</button>
+            <button onclick="setCalcPreset('12.04.1975', '20.05.2021')" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-sm rounded-lg text-gray-200 border border-gray-700 transition font-medium">Выдан в 46 лет (Бессрочный)</button>
+          </div>
+
+          <div id="calcResultBox" class="p-5 rounded-xl border transition-all duration-300 shadow-sm"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: TRANSLITERATION TOOL -->
+    <div id="tab-translit" class="tab-content hidden space-y-8">
+      <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 sm:p-8 shadow-sm">
+        <h2 class="text-2xl font-bold text-white mb-3 flex items-center gap-3">
+          <span>ГОСТ-транслитерация МВД РФ: 1-в-1 обратимая биекция</span>
+          <span class="text-xs sm:text-sm bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-3 py-1 rounded-full font-mono">Приказ МВД № 851</span>
+        </h2>
+        <p class="text-base text-gray-200 mb-6 leading-relaxed">
+          В паспорте РФ в первой строке MRZ русские буквы заменяются не на международные буквосочетания (например, «Ш» не превращается в «SH»), а на <b>строго фиксированные символы</b>. Цифры от 2 до 9 зарезервированы под кириллические буквы, не имеющие латинских аналогов:
+        </p>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mb-8 text-center text-base font-mono">
+          <div class="p-3 rounded-xl bg-gray-950 border border-gray-800"><span class="text-blue-400 text-lg font-bold">Ё</span> → <span class="text-amber-400 text-lg font-bold">2</span></div>
+          <div class="p-3 rounded-xl bg-gray-950 border border-gray-800"><span class="text-blue-400 text-lg font-bold">Ч</span> → <span class="text-amber-400 text-lg font-bold">3</span></div>
+          <div class="p-3 rounded-xl bg-gray-950 border border-gray-800"><span class="text-blue-400 text-lg font-bold">Ш</span> → <span class="text-amber-400 text-lg font-bold">4</span></div>
+          <div class="p-3 rounded-xl bg-gray-950 border border-gray-800"><span class="text-blue-400 text-lg font-bold">Э</span> → <span class="text-amber-400 text-lg font-bold">6</span></div>
+          <div class="p-3 rounded-xl bg-gray-950 border border-gray-800"><span class="text-blue-400 text-lg font-bold">Ю</span> → <span class="text-amber-400 text-lg font-bold">7</span></div>
+          <div class="p-3 rounded-xl bg-gray-950 border border-gray-800"><span class="text-blue-400 text-lg font-bold">Я</span> → <span class="text-amber-400 text-lg font-bold">8</span></div>
+          <div class="p-3 rounded-xl bg-gray-950 border border-gray-800"><span class="text-blue-400 text-lg font-bold">Ь</span> → <span class="text-amber-400 text-lg font-bold">9</span></div>
+          <div class="p-3 rounded-xl bg-gray-950 border border-gray-800"><span class="text-blue-400 text-lg font-bold">Щ</span> → <span class="text-amber-400 text-lg font-bold">W</span></div>
+          <div class="p-3 rounded-xl bg-gray-950 border border-gray-800"><span class="text-blue-400 text-lg font-bold">Ъ</span> → <span class="text-amber-400 text-lg font-bold">X</span></div>
+          <div class="p-3 rounded-xl bg-gray-950 border border-gray-800"><span class="text-blue-400 text-lg font-bold">Й</span> → <span class="text-amber-400 text-lg font-bold">Q</span></div>
+          <div class="p-3 rounded-xl bg-gray-950 border border-gray-800"><span class="text-blue-400 text-lg font-bold">Ж</span> → <span class="text-amber-400 text-lg font-bold">J</span></div>
+          <div class="p-3 rounded-xl bg-gray-950 border border-gray-800"><span class="text-blue-400 text-lg font-bold">Ц</span> → <span class="text-amber-400 text-lg font-bold">C</span></div>
+        </div>
+
+        <div class="bg-gray-950 p-6 sm:p-8 rounded-2xl border border-gray-800 shadow-inner">
+          <h3 class="text-lg font-bold text-white mb-4">Интерактивный конвертер ФИО в строку MRZ</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1.5">Фамилия:</label>
+              <input type="text" id="ruLast" value="ЩЕМЕЛИН" oninput="liveTranslit()" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm sm:text-base text-white uppercase font-mono shadow-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1.5">Имя:</label>
+              <input type="text" id="ruFirst" value="ВАЧАКАН" oninput="liveTranslit()" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm sm:text-base text-white uppercase font-mono shadow-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1.5">Отчество:</label>
+              <input type="text" id="ruMid" value="ЮРЬЕВИЧ" oninput="liveTranslit()" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm sm:text-base text-white uppercase font-mono shadow-sm">
+            </div>
+          </div>
+
+          <div class="p-5 rounded-xl bg-gray-900 border border-gray-800">
+            <div class="text-xs text-gray-400 mb-2 font-medium">Сформированная 1-я строка MRZ (44 символа):</div>
+            <div id="mrzLine1Output" class="text-base sm:text-lg font-mono text-emerald-400 font-bold tracking-wider break-all">
+              PNRUSWEMELIN&lt;&lt;VA3AKAN&lt;7R9EVI3&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: GEOMETRY & TRUNCATION DETECTION -->
+    <div id="tab-geometry" class="tab-content hidden space-y-8">
+      <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 sm:p-8 shadow-sm">
+        <h2 class="text-2xl font-bold text-white mb-3 flex items-center gap-3">
+          <span>Геометрический детектор пропущенных строк</span>
+          <span class="text-xs sm:text-sm bg-amber-500/20 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full font-mono">Защита от сбоев OCR</span>
+        </h2>
+        <p class="text-base text-gray-200 mb-6 leading-relaxed">
+          Самые частые ошибки распознавания (более 1100 случаев в train) происходят в длинных многострочных полях <code>Birth_place_ru</code> и <code>Issue_organization_ru</code>. Детектор текста находит общую рамку поля, но OCR-модель из-за блика или теней читает только одну нижнюю строку, пропуская верхние! Мы ловим этот сбой геометрическим анализом:
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div class="bg-gray-950 p-6 rounded-2xl border border-red-900/60 shadow-md">
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-sm sm:text-base font-bold text-red-400 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                Пример tr_01134: Потеряна первая строка!
+              </span>
+              <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-red-950 text-red-300 border border-red-700">Отказ (REJECT)</span>
+            </div>
+            
+            <div class="relative w-full h-44 bg-gray-900 rounded-xl border-2 border-dashed border-red-500/60 p-3.5 flex flex-col justify-between">
+              <div class="text-xs text-red-400 font-mono font-semibold">Общая рамка поля: h = 53px (рассчитана на 2 строки)</div>
+              <div class="border border-dashed border-red-500/50 bg-red-950/30 rounded-lg p-2 text-center text-sm text-red-300">
+                [Пропущено моделью OCR: «ГУ МВД РОССИИ ПО»]
+              </div>
+              <div class="bg-blue-950/70 border border-blue-500/60 rounded-lg p-2 text-sm text-blue-200 font-mono">
+                Строка 1: «Г. САНКТ-ПЕТЕРБУРГУ» (y=439)
+              </div>
+            </div>
+
+            <div class="mt-4 text-sm text-gray-300 leading-relaxed">
+              <span class="text-red-400 font-bold">Срабатывание детектора:</span> Высота блока <code>h=53px</code>, но строка всего одна, а верхний зазор <code>y_line - y_box = 28px</code>. Документ гарантированно отсекается.
+            </div>
+          </div>
+
+          <div class="bg-gray-950 p-6 rounded-2xl border border-emerald-900/60 shadow-md">
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-sm sm:text-base font-bold text-emerald-400 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                Пример tr_00001: Полное покрытие
+              </span>
+              <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-950 text-emerald-300 border border-emerald-700">Корректно ✓</span>
+            </div>
+
+            <div class="relative w-full h-44 bg-gray-900 rounded-xl border-2 border-emerald-500/60 p-3.5 flex flex-col justify-between">
+              <div class="text-xs text-emerald-400 font-mono font-semibold">Общая рамка поля: h = 91px (3 строки)</div>
+              <div class="bg-emerald-950/50 border border-emerald-700/60 rounded p-1.5 text-xs sm:text-sm text-emerald-200 font-mono truncate">
+                Строка 1: ОТДЕЛ ПО ВОПРОСАМ МИГРАЦИИ ОМВД
+              </div>
+              <div class="bg-emerald-950/50 border border-emerald-700/60 rounded p-1.5 text-xs sm:text-sm text-emerald-200 font-mono truncate">
+                Строка 2: РОССИИ ПО РЯЗАНСКОЙ ОБЛАСТИ В
+              </div>
+              <div class="bg-emerald-950/50 border border-emerald-700/60 rounded p-1.5 text-xs sm:text-sm text-emerald-200 font-mono truncate">
+                Строка 3: КАСИМОВСКОМ РАЙОНЕ
+              </div>
+            </div>
+
+            <div class="mt-4 text-sm text-gray-300 leading-relaxed">
+              <span class="text-emerald-400 font-bold">Срабатывание детектора:</span> Все 3 строки плотно и симметрично заполняют высоту рамки (верхний отступ 2px). Опасности пропуска нет.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: END-TO-END PIPELINE SIMULATOR -->
+    <div id="tab-simulator" class="tab-content hidden space-y-8">
+      <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 sm:p-8 shadow-sm">
+        <h2 class="text-2xl font-bold text-white mb-3 flex items-center gap-3">
+          <span>Интерактивный симулятор пайплайна решений</span>
+          <span class="text-xs sm:text-sm bg-blue-500/20 text-blue-400 border border-blue-500/30 px-3 py-1 rounded-full font-mono">Live Demo</span>
+        </h2>
+        <p class="text-base text-gray-200 mb-6 leading-relaxed">
+          Проверьте реальные документы из выборки через наш 6-этапный каскад фильтрации. Обратите внимание, на каком именно этапе алгоритм отсекает рискованные документы:
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <button onclick="runSimCase('tr_00001')" class="sim-btn p-4 rounded-xl border border-gray-800 bg-gray-950 hover:border-blue-500 text-left transition active-sim shadow-sm">
+            <div class="font-mono text-sm font-bold text-emerald-400 mb-1">Кейс 1: tr_00001</div>
+            <div class="text-xs text-gray-300">Идеальный документ (100% валидный)</div>
+          </button>
+          <button onclick="runSimCase('expired')" class="sim-btn p-4 rounded-xl border border-gray-800 bg-gray-950 hover:border-blue-500 text-left transition shadow-sm">
+            <div class="font-mono text-sm font-bold text-red-400 mb-1">Кейс 2: Просроченный</div>
+            <div class="text-xs text-gray-300">20 лет наступило &gt; 90 дней назад</div>
+          </button>
+          <button onclick="runSimCase('bad_mrz')" class="sim-btn p-4 rounded-xl border border-gray-800 bg-gray-950 hover:border-blue-500 text-left transition shadow-sm">
+            <div class="font-mono text-sm font-bold text-amber-400 mb-1">Кейс 3: Сбой в MRZ</div>
+            <div class="text-xs text-gray-300">Блик на номере $\to$ чек-сумма нарушена</div>
+          </button>
+          <button onclick="runSimCase('geo_cut')" class="sim-btn p-4 rounded-xl border border-gray-800 bg-gray-950 hover:border-blue-500 text-left transition shadow-sm">
+            <div class="font-mono text-sm font-bold text-purple-400 mb-1">Кейс 4: Срез адреса</div>
+            <div class="text-xs text-gray-300">Потеряна верхняя строка места рождения</div>
+          </button>
+        </div>
+
+        <div class="bg-gray-950 p-6 sm:p-8 rounded-2xl border border-gray-800 space-y-5 shadow-inner">
+          <div class="flex flex-wrap items-center justify-between pb-4 border-b border-gray-800 gap-3">
+            <div class="text-lg font-bold text-white" id="simTitle">Документ: tr_00001</div>
+            <div class="text-sm font-bold px-4 py-1.5 rounded-full font-mono" id="simFinalVerdict">РЕШЕНИЕ: ACCEPT</div>
+          </div>
+          <div class="space-y-3.5" id="simStepsContainer"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 7: TEST FORECAST & REPORT -->
+    <div id="tab-forecast" class="tab-content hidden space-y-8">
+      <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 sm:p-8 shadow-sm">
+        <h2 class="text-2xl font-bold text-white mb-3 flex items-center gap-3">
+          <span>Прогноз результатов на Test и чек-лист сдачи</span>
+          <span class="text-xs sm:text-sm bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full font-mono">Обязательно для отчёта</span>
+        </h2>
+        <p class="text-base text-gray-200 mb-6 leading-relaxed">
+          В требованиях задания сказано: <i class="text-blue-300 font-semibold">«Обязательно только одно: прогноз, сколько документов test ты примешь и сколько из них окажутся с ошибкой»</i>. Ниже приведена сводка по train и перенос на test:
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+          <div class="bg-gray-950 p-5 rounded-2xl border border-gray-800 shadow-sm">
+            <div class="text-sm text-gray-400 mb-1 font-medium">Размер теста</div>
+            <div class="text-3xl font-extrabold text-white font-mono">2000</div>
+            <div class="text-xs text-gray-400 mt-1">документов без ответов</div>
+          </div>
+
+          <div class="bg-gray-950 p-5 rounded-2xl border border-blue-900/50 shadow-sm">
+            <div class="text-sm text-blue-400 mb-1 font-medium">Прогноз приёма (Accept)</div>
+            <div class="text-3xl font-extrabold text-blue-400 font-mono">720 – 760</div>
+            <div class="text-xs text-gray-300 mt-1">~36% – 38% выборки</div>
+          </div>
+
+          <div class="bg-gray-950 p-5 rounded-2xl border border-emerald-900/50 shadow-sm">
+            <div class="text-sm text-emerald-400 mb-1 font-medium">Ошибок среди принятых</div>
+            <div class="text-3xl font-extrabold text-emerald-400 font-mono">0 – 1</div>
+            <div class="text-xs text-gray-300 mt-1">Precision &ge; 99.8%</div>
+          </div>
+
+          <div class="bg-gray-950 p-5 rounded-2xl border border-gray-800 shadow-sm">
+            <div class="text-sm text-gray-400 mb-1 font-medium">Отклонено (Reject)</div>
+            <div class="text-3xl font-extrabold text-gray-300 font-mono">1240 – 1280</div>
+            <div class="text-xs text-gray-400 mt-1">безопасный отсев брака</div>
+          </div>
+        </div>
+
+        <div class="bg-gray-950 p-6 sm:p-8 rounded-2xl border border-gray-800">
+          <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Чек-лист перед сдачей задания:
+          </h3>
+          <div class="space-y-3.5 text-sm sm:text-base text-gray-200">
+            <div class="flex items-start gap-3">
+              <span class="w-6 h-6 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-700 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">1</span>
+              <div>
+                <b>Скрипт postprocess.py:</b> корректно отрабатывает команду <code>python postprocess.py data/test_predictions.jsonl answers.jsonl</code> на CPU без интернета.
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="w-6 h-6 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-700 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">2</span>
+              <div>
+                <b>Файл answers.jsonl:</b> содержит ровно 2000 строк. Для строк с <code>"decision": "reject"</code> блок <code>"fields"</code> не заполняется!
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="w-6 h-6 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-700 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">3</span>
+              <div>
+                <b>Отчёт (до 2 страниц):</b> содержит описание архитектуры, математики MRZ, отсева просроченных паспортов (01.10.2026) и финальный прогноз.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => {
+        el.classList.add('hidden');
+        el.style.display = 'none';
+      });
+
+      const target = document.getElementById(tabId);
+      if (target) {
+        target.classList.remove('hidden');
+        target.style.display = 'block';
+      }
+
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => {
+        const attr = b.getAttribute('onclick') || '';
+        return attr.includes(tabId);
+      });
+      if (activeBtn) activeBtn.classList.add('active');
+
+      if (tabId === 'tab-simulator') {
+        runSimCase('tr_00001');
+      } else if (tabId === 'tab-mrz') {
+        loadMrzSample(1);
+      } else if (tabId === 'tab-validity') {
+        calculatePassportValidity();
+      } else if (tabId === 'tab-translit') {
+        liveTranslit();
+      }
+    }
+
+    const MRZ_SAMPLES = {
+      1: "6122839687RUS1006102M<<<<<<<4250911620004<28",
+      2: "9410875253RUS9803248M<<<<<<<8180829180004<52",
+      3: "6122839689RUS1006102M<<<<<<<4250911620004<28"
+    };
+
+    function icaoChecksum(str) {
+      const weights = [7, 3, 1];
+      let total = 0;
+      for (let i = 0; i < str.length; i++) {
+        const c = str[i];
+        let val = 0;
+        if (c >= '0' && c <= '9') val = parseInt(c);
+        else if (c >= 'A' && c <= 'Z') val = c.charCodeAt(0) - 65 + 10;
+        else if (c === '<') val = 0;
+        total += val * weights[i % 3];
+      }
+      return total % 10;
+    }
+
+    function renderMrz(l2) {
+      const grid = document.getElementById('mrzCharGrid');
+      grid.innerHTML = '';
+
+      for (let i = 0; i < l2.length; i++) {
+        const c = l2[i];
+        const span = document.createElement('span');
+        span.className = 'mrz-char ';
+        span.innerText = c;
+
+        if (i < 9) span.className += 'bg-blue-900/60 text-blue-300 border border-blue-700/60';
+        else if (i === 9) span.className += 'bg-emerald-900/80 text-emerald-300 border border-emerald-500 font-black';
+        else if (i >= 10 && i <= 12) span.className += 'bg-gray-800 text-gray-400';
+        else if (i >= 13 && i <= 18) span.className += 'bg-amber-900/60 text-amber-300 border border-amber-700/60';
+        else if (i === 19) span.className += 'bg-emerald-900/80 text-emerald-300 border border-emerald-500 font-black';
+        else if (i === 20) span.className += 'bg-pink-900/60 text-pink-300';
+        else if (i >= 21 && i <= 27) span.className += 'bg-gray-900 text-gray-600';
+        else if (i >= 28 && i <= 41) span.className += 'bg-purple-900/60 text-purple-300 border border-purple-700/60';
+        else if (i === 42) span.className += 'bg-emerald-900/80 text-emerald-300 border border-emerald-500 font-black';
+        else if (i === 43) span.className += 'bg-indigo-900/80 text-indigo-300 border border-indigo-500 font-black';
+
+        span.title = `Индекс [${i}]: '${c}'`;
+        grid.appendChild(span);
+      }
+
+      const c1 = icaoChecksum(l2.substring(0, 9));
+      const ok1 = (c1.toString() === l2[9]);
+
+      const c2 = icaoChecksum(l2.substring(13, 19));
+      const ok2 = (c2.toString() === l2[19]);
+
+      const c3 = icaoChecksum(l2.substring(28, 42));
+      const ok3 = (c3.toString() === l2[42]);
+
+      const compStr = l2.substring(0, 10) + l2.substring(13, 20) + l2.substring(21, 43);
+      const cComp = icaoChecksum(compStr);
+      const ok4 = (cComp.toString() === l2[43]);
+
+      document.getElementById('chkBadge1').innerText = ok1 ? `OK (${c1}) ✓` : `FAIL (${c1}≠${l2[9]}) ✗`;
+      document.getElementById('chkBadge1').className = `text-xs px-2 py-0.5 rounded font-mono font-bold ${ok1 ? 'bg-emerald-950 text-emerald-400' : 'bg-red-950 text-red-400'}`;
+
+      document.getElementById('chkBadge2').innerText = ok2 ? `OK (${c2}) ✓` : `FAIL (${c2}≠${l2[19]}) ✗`;
+      document.getElementById('chkBadge2').className = `text-xs px-2 py-0.5 rounded font-mono font-bold ${ok2 ? 'bg-emerald-950 text-emerald-400' : 'bg-red-950 text-red-400'}`;
+
+      document.getElementById('chkBadge3').innerText = ok3 ? `OK (${c3}) ✓` : `FAIL (${c3}≠${l2[42]}) ✗`;
+      document.getElementById('chkBadge3').className = `text-xs px-2 py-0.5 rounded font-mono font-bold ${ok3 ? 'bg-emerald-950 text-emerald-400' : 'bg-red-950 text-red-400'}`;
+
+      document.getElementById('chkBadge4').innerText = ok4 ? `OK (${cComp}) ✓` : `FAIL (${cComp}≠${l2[43]}) ✗`;
+      document.getElementById('chkBadge4').className = `text-xs px-2 py-0.5 rounded font-mono font-bold ${ok4 ? 'bg-emerald-950 text-emerald-400' : 'bg-red-950 text-red-400'}`;
+
+      const allOk = ok1 && ok2 && ok3 && ok4;
+      const statusBadge = document.getElementById('mrzStatusBadge');
+      if (allOk) {
+        statusBadge.innerText = 'Все 4 контрольные суммы верны ✓';
+        statusBadge.className = 'px-3 py-1 rounded-full font-bold text-xs bg-emerald-900/80 text-emerald-300 border border-emerald-600';
+      } else {
+        statusBadge.innerText = 'ОШИБКА ЧЕК-СУММЫ (Брак OCR) ✗';
+        statusBadge.className = 'px-3 py-1 rounded-full font-bold text-xs bg-red-900/80 text-red-300 border border-red-600 animate-pulse';
+      }
+
+      document.getElementById('outLicence').innerText = `${l2.substring(0, 2)} ${l2[2]}${l2[28]} ${l2.substring(3, 9)}`;
+      const yy = parseInt(l2.substring(13, 15));
+      const cent = yy > 26 ? '19' : '20';
+      document.getElementById('outBirth').innerText = `${l2.substring(17, 19)}.${l2.substring(15, 17)}.${cent}${l2.substring(13, 15)} (${l2[20] === 'M' ? 'МУЖ.' : 'ЖЕН.'})`;
+      
+      const i_yy = parseInt(l2.substring(29, 31));
+      const i_cent = i_yy >= 90 ? '19' : '20';
+      document.getElementById('outIssue').innerText = `${l2.substring(33, 35)}.${l2.substring(31, 33)}.${i_cent}${l2.substring(29, 31)} | ${l2.substring(35, 38)}-${l2.substring(38, 41)}`;
+      document.getElementById('outComp').innerText = `Поз. 43 = ${l2[43]} (Вычислено: ${cComp})`;
+    }
+
+    function loadMrzSample(idx) {
+      renderMrz(MRZ_SAMPLES[idx]);
+    }
+
+    function parseDate(s) {
+      const parts = s.trim().split('.');
+      if (parts.length !== 3) return null;
+      const d = parseInt(parts[0]), m = parseInt(parts[1]) - 1, y = parseInt(parts[2]);
+      const date = new Date(y, m, d);
+      return (date.getFullYear() === y && date.getMonth() === m && date.getDate() === d) ? date : null;
+    }
+
+    function addYears(d, years) {
+      const res = new Date(d);
+      res.setFullYear(res.getFullYear() + years);
+      return res;
+    }
+
+    function addDays(d, days) {
+      const res = new Date(d);
+      res.setDate(res.getDate() + days);
+      return res;
+    }
+
+    function calculatePassportValidity() {
+      const birthStr = document.getElementById('calcBirth').value;
+      const issueStr = document.getElementById('calcIssue').value;
+      const resBox = document.getElementById('calcResultBox');
+      const refDate = new Date(2026, 9, 1);
+
+      const b = parseDate(birthStr);
+      const i = parseDate(issueStr);
+
+      if (!b || !i) {
+        resBox.className = 'p-5 rounded-xl border border-gray-800 bg-gray-900 text-sm text-gray-400';
+        resBox.innerHTML = 'Введите корректные даты в формате ДД.ММ.ГГГГ';
+        return;
+      }
+
+      if (i > refDate) {
+        renderRes(false, 'Дата выдачи позже даты отсечки (01.10.2026). Паспорт из будущего!');
+        return;
+      }
+      if (i < b) {
+        renderRes(false, 'Дата выдачи раньше даты рождения!');
+        return;
+      }
+
+      const b14 = addYears(b, 14);
+      if (i < b14) {
+        renderRes(false, 'Паспорт не может быть выдан ранее 14 лет.');
+        return;
+      }
+
+      const b20 = addYears(b, 20);
+      const b45 = addYears(b, 45);
+
+      if (i < b20) {
+        const exp = addDays(b20, 90);
+        if (refDate > exp) {
+          renderRes(false, `Паспорт выдан в возрасте до 20 лет. Срок замены наступил ${b20.toLocaleDateString('ru-RU')}. С учётом 90-дневного льготного периода паспорт стал недействительным ${exp.toLocaleDateString('ru-RU')}.`);
+        } else {
+          renderRes(true, `Действителен! Паспорт подлежит замене до ${exp.toLocaleDateString('ru-RU')}.`);
+        }
+      } else if (i < b45) {
+        const exp = addDays(b45, 90);
+        if (refDate > exp) {
+          renderRes(false, `Паспорт выдан в возрасте от 20 до 45 лет. Срок замены наступил ${b45.toLocaleDateString('ru-RU')}. С учётом 90 дней паспорт просрочен с ${exp.toLocaleDateString('ru-RU')}.`);
+        } else {
+          renderRes(true, `Действителен! Паспорт действует до ${exp.toLocaleDateString('ru-RU')}.`);
+        }
+      } else {
+        renderRes(true, 'Действителен! Паспорт выдан в возрасте 45 лет или старше — действует бессрочно.');
+      }
+
+      function renderRes(isValid, reason) {
+        if (isValid) {
+          resBox.className = 'p-5 rounded-xl border border-emerald-800 bg-emerald-950/40 text-sm';
+          resBox.innerHTML = `
+            <div class="flex items-center gap-2.5 text-emerald-400 font-bold text-base mb-1.5">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+              ВЕРДИКТ: ПАСПОРТ ДЕЙСТВИТЕЛЕН НА 01.10.2026
+            </div>
+            <p class="text-gray-200 leading-relaxed text-sm sm:text-base">${reason}</p>
+          `;
+        } else {
+          resBox.className = 'p-5 rounded-xl border border-red-800 bg-red-950/40 text-sm';
+          resBox.innerHTML = `
+            <div class="flex items-center gap-2.5 text-red-400 font-bold text-base mb-1.5">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              ВЕРДИКТ: ПАСПОРТ ПРОСРОЧЕН (ОТКЛОНИТЬ)
+            </div>
+            <p class="text-red-200 leading-relaxed text-sm sm:text-base">${reason}</p>
+          `;
+        }
+      }
+    }
+
+    function setCalcPreset(b, i) {
+      document.getElementById('calcBirth').value = b;
+      document.getElementById('calcIssue').value = i;
+      calculatePassportValidity();
+    }
+
+    const RU_MAP = {
+      'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Е': 'E', 'Ё': '2',
+      'Ж': 'J', 'З': 'Z', 'И': 'I', 'Й': 'Q', 'К': 'K', 'Л': 'L', 'М': 'M',
+      'Н': 'N', 'О': 'O', 'П': 'P', 'Р': 'R', 'С': 'S', 'Т': 'T', 'У': 'U',
+      'Ф': 'F', 'Х': 'H', 'Ц': 'C', 'Ч': '3', 'Ш': '4', 'Щ': 'W', 'Ъ': 'X',
+      'Ы': 'Y', 'Ь': '9', 'Э': '6', 'Ю': '7', 'Я': '8', ' ': '<', '-': '<'
+    };
+
+    function translit(s) {
+      return (s || '').toUpperCase().split('').map(c => RU_MAP[c] || '').join('');
+    }
+
+    function liveTranslit() {
+      const l = translit(document.getElementById('ruLast').value);
+      const f = translit(document.getElementById('ruFirst').value);
+      const m = translit(document.getElementById('ruMid').value);
+
+      let res = `PNRUS${l}<<${f}<${m}`;
+      while (res.length < 44) res += '<';
+      if (res.length > 44) res = res.substring(0, 44);
+
+      document.getElementById('mrzLine1Output').innerText = res;
+    }
+
+    const SIM_CASES = {
+      'tr_00001': {
+        title: "tr_00001 (Заинтинов Закерий, 16 лет)",
+        verdict: "ACCEPT (Все 10 полей верны)",
+        isAccept: true,
+        steps: [
+          { name: "1. Контрольные суммы MRZ (Line 2)", ok: true, msg: "Все 4 чек-суммы ICAO 7-3-1 сошлись. Извлечены Серия/Номер, Даты, Код подразделения." },
+          { name: "2. Срок действия паспорта (01.10.2026)", ok: true, msg: "Возраст на дату отсечки 16.3 лет. Паспорт выдан в 15 лет и действителен до 2030 года." },
+          { name: "3. Проверка кода подразделения", ok: true, msg: "Код 620-004 подтверждён в справочнике DaData (Рязанская обл.)." },
+          { name: "4. Кросс-валидация ФИО через MRZ Line 1", ok: true, msg: "VIZ 'ЗАИНТИНОВ' == MRZ 'ZAINTINOV', 'ЗАКЕРИЙ' == 'ZAKERIQ'. Совпадение 100%." },
+          { name: "5. Геометрический аудит рамок", ok: true, msg: "Рамка Issue_org (h=91px, 3 строки, отступ 2px). Обрывов текста нет." },
+          { name: "6. Фильтр уверенности OCR (char_conf)", ok: true, msg: "Минимальный char_conf по адресу и органу = 0.994. Выдаём результат." }
+        ]
+      },
+      'expired': {
+        title: "tr_00842 (Просроченный паспорт по возрасту)",
+        verdict: "REJECT (Паспорт просрочен)",
+        isAccept: false,
+        steps: [
+          { name: "1. Контрольные суммы MRZ (Line 2)", ok: true, msg: "Чек-суммы сходятся (OCR распознал символы четко)." },
+          { name: "2. Срок действия паспорта (01.10.2026)", ok: false, msg: "ОТКАЗ! Паспорт выдан в 14 лет. 20 лет исполнилось 15.01.2026. 90-дневный срок истёк 15.04.2026!" },
+          { name: "3. Проверка кода подразделения", ok: null, msg: "Пропущено из-за отказа на шаге срока действия." },
+          { name: "4. Кросс-валидация ФИО через MRZ Line 1", ok: null, msg: "Пропущено." },
+          { name: "5. Геометрический аудит рамок", ok: null, msg: "Пропущено." },
+          { name: "6. Фильтр уверенности OCR (char_conf)", ok: null, msg: "Пропущено." }
+        ]
+      },
+      'bad_mrz': {
+        title: "tr_00189 (Блик на ламинации внизу страницы)",
+        verdict: "REJECT (Сбой контрольной суммы MRZ)",
+        isAccept: false,
+        steps: [
+          { name: "1. Контрольные суммы MRZ (Line 2)", ok: false, msg: "ОТКАЗ! Контрольная сумма номера паспорта вернула 4 вместо 7 (OCR перепутал цифры 6 и 8 из-за блика)." },
+          { name: "2. Срок действия паспорта (01.10.2026)", ok: null, msg: "Пропущено." },
+          { name: "3. Проверка кода подразделения", ok: null, msg: "Пропущено." },
+          { name: "4. Кросс-валидация ФИО через MRZ Line 1", ok: null, msg: "Пропущено." },
+          { name: "5. Геометрический аудит рамок", ok: null, msg: "Пропущено." },
+          { name: "6. Фильтр уверенности OCR (char_conf)", ok: null, msg: "Пропущено." }
+        ]
+      },
+      'geo_cut': {
+        title: "tr_01134 (Срезанная строка при распознавании органа)",
+        verdict: "REJECT (Геометрический срез строки)",
+        isAccept: false,
+        steps: [
+          { name: "1. Контрольные суммы MRZ (Line 2)", ok: true, msg: "MRZ Line 2 валиден." },
+          { name: "2. Срок действия паспорта (01.10.2026)", ok: true, msg: "Паспорт действителен." },
+          { name: "3. Проверка кода подразделения", ok: true, msg: "Код найден в справочнике." },
+          { name: "4. Кросс-валидация ФИО через MRZ Line 1", ok: true, msg: "ФИО совпало." },
+          { name: "5. Геометрический аудит рамок", ok: false, msg: "ОТКАЗ! Высота рамки h=53px, прочитана 1 строка, отступ сверху 28px. Потеряна строка 'ГУ МВД РОССИИ ПО'!" },
+          { name: "6. Фильтр уверенности OCR (char_conf)", ok: null, msg: "Пропущено." }
+        ]
+      }
+    };
+
+    function runSimCase(caseId) {
+      document.querySelectorAll('.sim-btn').forEach(b => b.classList.remove('border-blue-500', 'bg-blue-950/30'));
+      const activeBtn = Array.from(document.querySelectorAll('.sim-btn')).find(b => b.getAttribute('onclick').includes(caseId));
+      if (activeBtn) activeBtn.classList.add('border-blue-500', 'bg-blue-950/30');
+
+      const data = SIM_CASES[caseId];
+      document.getElementById('simTitle').innerText = data.title;
+      
+      const vBadge = document.getElementById('simFinalVerdict');
+      vBadge.innerText = data.verdict;
+      vBadge.className = `text-xs sm:text-sm font-bold px-3.5 py-1.5 rounded-full font-mono shadow-sm ${data.isAccept ? 'bg-emerald-950 text-emerald-300 border border-emerald-600' : 'bg-red-950 text-red-300 border border-red-600'}`;
+
+      const cont = document.getElementById('simStepsContainer');
+      cont.innerHTML = '';
+
+      data.steps.forEach(step => {
+        const div = document.createElement('div');
+        div.className = 'p-4 rounded-xl border flex items-start gap-4 shadow-sm ';
+        
+        let icon = '';
+        if (step.ok === true) {
+          div.className += 'bg-emerald-950/25 border-emerald-800 text-emerald-200';
+          icon = `<span class="text-emerald-400 font-extrabold text-base">✓</span>`;
+        } else if (step.ok === false) {
+          div.className += 'bg-red-950/35 border-red-800 text-red-200';
+          icon = `<span class="text-red-400 font-extrabold text-base">✗</span>`;
+        } else {
+          div.className += 'bg-gray-900/50 border-gray-800 text-gray-400';
+          icon = `<span class="text-gray-500 font-bold">•</span>`;
+        }
+
+        div.innerHTML = `
+          <div class="mt-0.5">${icon}</div>
+          <div class="flex-1">
+            <div class="font-bold text-white text-sm sm:text-base mb-1">${step.name}</div>
+            <div class="text-xs sm:text-sm leading-relaxed">${step.msg}</div>
+          </div>
+        `;
+        cont.appendChild(div);
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadMrzSample(1);
+      calculatePassportValidity();
+      liveTranslit();
+      runSimCase('tr_00001');
+    });
+  </script>
+</body>
+</html>

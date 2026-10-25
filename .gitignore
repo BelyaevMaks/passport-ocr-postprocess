@@ -1,0 +1,13 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Temporary evaluation and test files
+train_answers.jsonl
+baseline_answers.jsonl
+*.tmp
+
+# OS generated files
+.DS_Store
+Thumbs.db
