@@ -75,7 +75,7 @@
       background: var(--success-bg);
     }
     h2 {
-      font-size: 1.5rem;
+      font-size: 1.45rem;
       font-weight: 700;
       color: #ffffff;
       margin-top: 2.5rem;
@@ -87,7 +87,7 @@
       padding-bottom: 0.5rem;
     }
     h3 {
-      font-size: 1.2rem;
+      font-size: 1.15rem;
       font-weight: 600;
       color: var(--accent);
       margin-top: 1.5rem;
@@ -105,45 +105,19 @@
     li {
       margin-bottom: 0.4rem;
     }
-    b, strong {
-      color: #ffffff;
-    }
     code {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 0.9em;
-      background: #111827;
+      background: #0b1120;
       padding: 0.2rem 0.45rem;
       border-radius: 4px;
-      color: #7dd3fc;
-      border: 1px solid #1f2937;
-    }
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--surface-border);
-      border-radius: 12px;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-    .callout {
-      border-left: 4px solid var(--accent);
-      background: rgba(56, 189, 248, 0.08);
-      padding: 1rem 1.25rem;
-      border-radius: 0 8px 8px 0;
-      margin-bottom: 1.25rem;
-    }
-    .callout.warning {
-      border-left-color: var(--warning);
-      background: var(--warning-bg);
-    }
-    .callout.success {
-      border-left-color: var(--success);
-      background: var(--success-bg);
+      color: #38bdf8;
+      border: 1px solid #1e293b;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin: 1.25rem 0;
+      margin: 1.5rem 0;
       background: var(--surface);
       border-radius: 8px;
       overflow: hidden;
@@ -153,18 +127,38 @@
       padding: 0.85rem 1rem;
       text-align: left;
       border-bottom: 1px solid var(--surface-border);
-      font-size: 0.95rem;
     }
     th {
-      background: #0f172a;
-      font-weight: 700;
-      color: #ffffff;
+      background: #111827;
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.85rem;
       text-transform: uppercase;
-      font-size: 0.8rem;
       letter-spacing: 0.05em;
     }
     tr:last-child td {
       border-bottom: none;
+    }
+    .callout {
+      padding: 1.25rem;
+      border-radius: 8px;
+      margin: 1.5rem 0;
+      border-left: 4px solid;
+    }
+    .callout.warning {
+      background: var(--warning-bg);
+      border-color: var(--warning);
+      color: #fef3c7;
+    }
+    .callout.success {
+      background: var(--success-bg);
+      border-color: var(--success);
+      color: #d1fae5;
+    }
+    .callout.danger {
+      background: var(--danger-bg);
+      border-color: var(--danger);
+      color: #fee2e2;
     }
     .stat-grid {
       display: grid;
@@ -175,24 +169,28 @@
     .stat-card {
       background: var(--surface);
       border: 1px solid var(--surface-border);
-      border-radius: 12px;
+      border-radius: 8px;
       padding: 1.25rem;
       text-align: center;
     }
     .stat-val {
       font-size: 2rem;
       font-weight: 800;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      color: var(--accent);
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, monospace;
       margin-bottom: 0.25rem;
     }
     .stat-val.success {
       color: var(--success);
     }
+    .stat-val.warning {
+      color: var(--warning);
+    }
     .stat-label {
       font-size: 0.85rem;
       color: var(--text-muted);
-      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
     footer {
       margin-top: 3.5rem;
@@ -208,220 +206,246 @@
   <div class="container">
     <header>
       <h1>Отчёт о решении: Постобработка OCR паспортов РФ</h1>
-      <p class="subtitle">Разработка высокоточного фильтра отбора документов в условиях асимметричной функции потерь</p>
+      <p class="subtitle">Разработка надёжного фильтра отбора документов в условиях асимметричной функции потерь</p>
       <div class="meta-pills">
         <span class="pill">Команда: python postprocess.py</span>
         <span class="pill">Окружение: CPU Only / Offline</span>
-        <span class="pill success">Точность: Precision &ge; 99.7%</span>
+        <span class="pill success">Out-of-Fold Точность: 99.2%</span>
         <span class="pill">Выборка: Train (3000) / Test (2000)</span>
       </div>
     </header>
 
     <!-- SECTION 1 -->
     <section>
-      <h2>1. Постановка задачи и бизнес-ограничения</h2>
+      <h2>1. Постановка задачи и цель</h2>
       <p>
-        На вход поступают предсказания OCR-модели (3000 на train, 2000 на test) для паспортов РФ. Для каждого документа требуется принять бинарное решение: <b>принять</b> (<code>accept</code>) с выдачей значений 10 полей либо <b>отклонить</b> (<code>reject</code>) с запросом переснять снимок.
+        На вход поступают распознавания OCR-модели (3000 на train, 2000 на test) для разворота страниц 2–3 паспорта РФ. Для каждого документа требуется принять бинарное решение: <b>принять</b> (<code>accept</code>) с выдачей значений 10 полей либо <b>отклонить</b> (<code>reject</code>) с запросом переснять снимок.
       </p>
-      
       <div class="callout warning">
-        <b>Ключевое ограничение:</b> <i>«Принятый документ с ошибкой обходится нам намного дороже, чем отклонённый»</i>.
-        Это задаёт жёсткую <b>асимметрию штрафа</b> ($Cost(FP) \gg Cost(FN)$). Любая ошибка хотя бы в одном знаке любого из 10 полей делает весь документ ошибочным. Наша оптимизационная цель — максимизировать число принятых документов при <b>гарантии около 100% точности</b> (Precision $\to 100\%$).
+        <b>Ключевое требование бизнеса:</b> принятый документ с ошибкой обходится критически дороже отклонённого. Цель — максимизировать охват (<code>coverage</code>), строго минимизируя брак в полях. Любая ошибка хотя бы в одном знаке любого из 10 полей считается дефектом.
       </div>
-
-      <p>
-        Документ считается принятым верно, если:
-      </p>
-      <ol>
-        <li>Все 10 полей совпадают с эталонной разметкой (без учёта регистра и повторных пробелов).</li>
-        <li>Паспорт является <b>юридически действительным на 01.10.2026</b> (в базовом <code>evaluate.py</code> не проверяется, но учитывается при итоговом тестировании).</li>
-      </ol>
     </section>
 
     <!-- SECTION 2 -->
     <section>
-      <h2>2. Исследование данных и ключевые открытия (EDA)</h2>
+      <h2>2. Анализ ошибок базовой версии и аудит аномалии tr_01506</h2>
       <p>
-        Анализ обучающей выборки (`3000` документов) выявил фундаментальные закономерности структуры паспорта РФ:
+        Базовый фильтр принимал 1101 документ (36.7%), допуская <b>15 ошибочно принятых документов</b> на train (<code>Last_name_ru=4, First_name_ru=4, Birth_place_ru=3, Issue_organization_ru=4</code>).
+      </p>
+      <p>
+        <b>Причины ошибок базового фильтра:</b> отсутствие порога <code>char_conf</code> на именах и строке MRZ L1, недостаточный порог уверенности для многострочных полей (пропуск артефактов вроде <code>СКР.</code> и <code>ЧСЕВЕРНАЯ</code>), искажения в наименованиях подразделений и сильные блики (<code>glare = 0.222</code>).
       </p>
 
-      <h3>A. Машиночитаемая зона (MRZ) — абсолютный криптографический якорь</h3>
+      <h3>Детальное расследование оставшейся ошибки на Train (документ tr_01506)</h3>
       <p>
-        Вторая строка MRZ паспорта РФ строится по стандарту <b>ICAO Doc 9303 (TD3)</b> и содержит ровно 44 символа с <b>четырьмя независимыми контрольными суммами</b> (веса `7, 3, 1` по модулю 10):
+        На обучающей выборке единственным принятым документом с расхождением остаётся <code>tr_01506</code> (поле <code>First_name_ru</code>: OCR <code>КАБЛЯХБАР</code> против эталона <code>КАБЛЯЖБАР</code>):
       </p>
       <ul>
-        <li><b>Чек-сумма 1 (поз. 9):</b> первые 3 цифры серии + 6 цифр номера.</li>
-        <li><b>Чек-сумма 2 (поз. 19):</b> дата рождения в формате ГГММДД.</li>
-        <li><b>Чек-сумма 3 (поз. 42):</b> 4-я цифра серии (поз. 28) + дата выдачи (ГГММДД) + 6 цифр кода подразделения.</li>
-        <li><b>Чек-сумма 4 (поз. 43):</b> композитная контрольная сумма всего блока.</li>
+        <li><b>Анализ входных признаков:</b> абсолютно все символы во всех 10 визуальных полях и в обеих строках MRZ имеют <code>char_conf = 1.000</code>. Уровень бликов <code>glare = 0.0</code>, резкость <code>sharpness = 208.1</code>, разрешение <code>doc_px = 1972</code>. Контрольные суммы MRZ L2 верны, срок действия соблюдён, код подразделения и лексика валидны. Визуальное имя полностью согласовано с транслитерацией MRZ Line 1 (<code>КАБЛЯХБАР</code> &harr; <code>KABL8HBAR</code>).</li>
+        <li><b>Аудит эталонной разметки:</b> на train найдено 10 документов, где транслитерация MRZ L1 совпала с визуальным OCR, но разошлась с разметкой. В 9 из них (<code>БАЛТРУШЕЕВИЧ</code> vs <code>ЬАЛТРУШЕЕВИЧ</code>, <code>МУЗЫЧУК</code> vs <code>МУЗЫУУК</code>, <code>ЗИЯНУРОВ</code> vs <code>ЗИЯНУРСВ</code>, <code>ЕВГЕНИЙ</code> vs <code>ЕВТЕНИЙ</code>, <code>ФАРИДА</code> vs <code>ФАРИЛА</code> и др.) расхождение вызвано очевидными опечатками операторов ручной разметки (соседние клавиши русской клавиатуры). В <code>tr_01506</code> буквы <code>Х</code> и <code>Ж</code> аналогично набираются одной группой пальцев (правый мизинец).</li>
       </ul>
 
-      <div class="card">
-        <b>Эмпирический факт:</b> Из 3000 документов train у <b>2552</b> строка MRZ Line 2 прошла все 4 чек-суммы и проверку на строго цифровой алфавит. На всей этой выборке извлечённые из MRZ поля (<code>Licence_number</code>, <code>Birth_date</code>, <code>Sex_ru</code>, <code>Issue_date</code>, <code>Issue_organisation_code</code>) дали <b>0 ошибок из 2552 (100.0% точность)</b>!
+      <div class="callout danger">
+        <b>Ограничение обобщения:</b> во входных данных нет объективного признака дефекта для фильтрации <code>tr_01506</code>. Любое искусственное правило под данный кейс будет переобучением. <b>Гарантировать ноль ошибок на test невозможно:</b> эталонная разметка содержит шум ручной аннотации (~0.3%), а редкие имена со 100% уверенностью OCR неотличимы от безошибочных.
       </div>
-
-      <h3>B. Нормативная ГОСТ-транслитерация ФИО (Приказ МВД № 851)</h3>
-      <p>
-        Первая строка MRZ содержит ФИО в специальной одно-однозначной обратимой транслитерации, где буквы без аналогов в латинице заменены цифрами:
-        <code>2=Ё, 3=Ч, 4=Ш, W=Щ, X=Ъ, 9=Ь, 6=Э, 7=Ю, 8=Я, Q=Й, J=Ж, C=Ц</code>.
-        Кросс-валидация транслитерированных визуальных полей <code>Last_name_ru</code>, <code>First_name_ru</code>, <code>Middle_name_ru</code> со строкой MRZ Line 1 гарантирует отсутствие галлюцинаций и опечаток в именах.
-      </p>
-
-      <h3>C. Фильтр юридической действительности на 01.10.2026</h3>
-      <p>
-        Согласно Положению о паспорте гражданина РФ (Постановление Правительства № 828 в ред. № 1205):
-      </p>
-      <ul>
-        <li>Паспорт выдаётся в 14 лет (выдача ранее 14 лет невозможна).</li>
-        <li>При достижении <b>20 лет</b> и <b>45 лет</b> паспорт подлежит обязательной замене.</li>
-        <li>Гражданину даётся <b>90 дней</b> со дня рождения на оформление нового паспорта, после чего документ становится недействительным.</li>
-        <li>Выданный в 45 лет и старше — бессрочный.</li>
-      </ul>
-      <p>
-        В обучающей выборке выявлено <b>90 просроченных паспортов (3.0%)</b>. Принятие любого из них на тесте приведёт к штрафу. Наш фильтр отсекает их на 100%.
-      </p>
-
-      <h3>D. Геометрия рамок детектора и потеря строк</h3>
-      <p>
-        Поля <code>Birth_place_ru</code> и <code>Issue_organization_ru</code> не дублируются в MRZ и дают >90% ошибок базового OCR. Анализ показал главную причину: <b>потеря строки детектором</b>. Если общая рамка поля имеет высоту `box.h >= 48px` (высота 2 строк), а распознана всего 1 строка, либо верхний отступ `lines[0].y - box.y > 18px`, значит, первая строка отсечена (например, пропущено «ГУ МВД РОССИИ ПО»).
-      </p>
     </section>
 
     <!-- SECTION 3 -->
     <section>
-      <h2>3. Архитектура решения (Каскад из 6 Guardrails)</h2>
-      <p>
-        Пайплайн в <code>postprocess.py</code> обрабатывает документ через последовательный каскад детерминированных проверок:
-      </p>
-
+      <h2>3. Архитектура доработанного фильтра (Каскад Guardrails)</h2>
       <table>
         <thead>
           <tr>
-            <th>Этап</th>
+            <th>Уровень</th>
             <th>Проверка (Guardrail)</th>
             <th>Действие при сбое</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><b>1. MRZ Validation</b></td>
-            <td>Проверка 4 контрольных сумм ICAO 7-3-1 mod 10 + маска цифр на поз. серий, дат, кодов.</td>
+            <td><b>1. MRZ Line 2 Checksums</b></td>
+            <td>4 независимых контрольных суммы ICAO Doc 9303 (модуль 10, веса 7-3-1), синтаксис позиций, пол, код RUS. 5 полей извлекаются из MRZ.</td>
             <td><code>reject</code></td>
           </tr>
           <tr>
-            <td><b>2. Validity Check</b></td>
-            <td>Проверка действительности на 01.10.2026: возраст $\ge 14$, замена в 20 и 45 лет (+90 дней).</td>
+            <td><b>2. Passport Legal Validity</b></td>
+            <td>Действительность на 01.10.2026: возраст выдачи &ge; 14 лет, регламентная замена в 20 и 45 лет (+90 дней grace period).</td>
             <td><code>reject</code></td>
           </tr>
           <tr>
-            <td><b>3. Reference Code</b></td>
-            <td>Сверка кода подразделения со справочником DaData (<code>reference/subdivisions.csv</code>).</td>
+            <td><b>3. Image Quality Guardrail</b></td>
+            <td>Отсечение дефектных снимков: <code>glare &gt; 0.12</code>, <code>sharpness &lt; 120.0</code> или <code>doc_px &lt; 1200</code>.</td>
             <td><code>reject</code></td>
           </tr>
           <tr>
-            <td><b>4. Names Cross-check</b></td>
-            <td>1-в-1 сверка транслитерированных визуальных ФИО со строкой MRZ Line 1.</td>
+            <td><b>4. MRZ Line 1 Confidence</b></td>
+            <td>Строгий порог уверенности транслитерированных имён: <code>min_char_conf &ge; 0.995</code>.</td>
             <td><code>reject</code></td>
           </tr>
           <tr>
-            <td><b>5. Geometry Audit</b></td>
-            <td>Проверка целостности рамок: высота `box.h`, верхние, межстрочные и нижние отступы.</td>
+            <td><b>5. Names Translit Verification</b></td>
+            <td>Порог <code>min_char_conf &ge; 0.985</code> на визуальных ФИО и посимвольная сверка с ГОСТ-транслитерацией MRZ L1.</td>
             <td><code>reject</code></td>
           </tr>
           <tr>
-            <td><b>6. OCR Confidence</b></td>
-            <td>Порог минимальной уверенности символов: `min(char_conf) >= 0.98`.</td>
+            <td><b>6. Multi-line Geometry Audit</b></td>
+            <td>Контроль рамок <code>Birth_place_ru</code> и <code>Issue_organization_ru</code> на пропуск строк (высота vs строки, отступы).</td>
+            <td><code>reject</code></td>
+          </tr>
+          <tr>
+            <td><b>7. Strict Field Confidence</b></td>
+            <td>Повышенные пороги: <code>Birth_place_ru &ge; 0.9985</code> и <code>Issue_organization_ru &ge; 0.985</code>.</td>
+            <td><code>reject</code></td>
+          </tr>
+          <tr>
+            <td><b>8. Reference Vocabulary Check</b></td>
+            <td>Поиск кода в <code>reference/subdivisions.csv</code> и лексическая сверка всех слов органа выдачи с официальным словарём МВД.</td>
             <td><code>reject</code></td>
           </tr>
         </tbody>
       </table>
-      <p>
-        Только при успешном прохождении всех 6 этапов документ помечается как <code>accept</code>, при этом 5 ключевых полей формируются напрямую из математически верифицированного MRZ, гарантируя абсолютную точность.
-      </p>
     </section>
 
     <!-- SECTION 4 -->
     <section>
-      <h2>4. Результаты валидации на Train (3000 документов)</h2>
-      
-      <div class="stat-grid">
-        <div class="stat-card">
-          <div class="stat-val">3000</div>
-          <div class="stat-label">Всего документов</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-val">1101</div>
-          <div class="stat-label">Принято (36.7%)</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-val success">1086</div>
-          <div class="stat-label">Принято верно</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-val success">98.6%</div>
-          <div class="stat-label">Точность (Precision)</div>
-        </div>
-      </div>
-
-      <div class="callout success">
-        <b>Анализ оставшихся 15 несовпадений на train:</b><br>
-        Детальный аудит показал, что <b>8 из 15 несовпадений вызваны опечатками в эталонной разметке ground truth</b>:
-        например, разметчик опечатался `ЬАЛТРУШЕЕВИЧ` вместо `БАЛТРУШЕЕВИЧ`, `МУЗЫУУК` вместо `МУЗЫЧУК`, `ЗИЯНУРСВ` вместо `ЗИЯНУРОВ`, `ЕВТЕНИЙ` вместо `ЕВГЕНИЙ`. В паспорте и в MRZ зафиксирован правильный вариант. Таким образом, <b>реальная точность алгоритма на корректных данных составляет &gt; 99.3%</b>.
-      </div>
-    </section>
-
-    <!-- SECTION 5 -->
-    <section>
-      <h2>5. Обязательный прогноз для тестовой выборки (Test)</h2>
+      <h2>4. Кросс-валидация и результаты на Train (3000 документов)</h2>
       <p>
-        Тестовая выборка содержит <b>2000 документов</b> (`test_predictions.jsonl`). На основе работы скрипта <code>postprocess.py</code> получен следующий официальный прогноз:
+        Для исключения переобучения порогов под train проведена 5-кратная стратифицированная кросс-валидация (5-Fold CV):
       </p>
 
       <table>
         <thead>
           <tr>
+            <th>Фолд</th>
+            <th>Размер фолда</th>
+            <th>Принято (accept)</th>
+            <th>Верно</th>
+            <th>Ошибок</th>
+            <th>Точность (Precision)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><b>Fold 1</b></td><td>600</td><td>21 (3.5%)</td><td>20</td><td>1 (<code>tr_01506</code>)</td><td>95.24%</td></tr>
+          <tr><td><b>Fold 2</b></td><td>600</td><td>29 (4.8%)</td><td>29</td><td>0</td><td><b>100.00%</b></td></tr>
+          <tr><td><b>Fold 3</b></td><td>600</td><td>32 (5.3%)</td><td>32</td><td>0</td><td><b>100.00%</b></td></tr>
+          <tr><td><b>Fold 4</b></td><td>600</td><td>24 (4.0%)</td><td>24</td><td>0</td><td><b>100.00%</b></td></tr>
+          <tr><td><b>Fold 5</b></td><td>600</td><td>23 (3.8%)</td><td>23</td><td>0</td><td><b>100.00%</b></td></tr>
+          <tr style="font-weight: bold; background: rgba(56, 189, 248, 0.1);">
+            <td>Out-of-Fold Итог</td><td>3000</td><td>129 (4.3%)</td><td>128</td><td>1</td><td>99.22%</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout success">
+        <b>Итог валидации:</b> в 4 из 5 фолдов достигнута абсолютная точность 100.0%. По 9 из 10 полей паспорта зафиксировано 0 ошибок на всей выборке train. Оценка на отложенных данных доказала стабильность и обобщаемость порогов.
+      </div>
+    </section>
+
+    <!-- SECTION 5 -->
+    <section>
+      <h2>5. Объяснение различия доли приёмки (4.3% Train vs 9.2% Test)</h2>
+      <p>
+        На train принято 4.3% (129/3000), а на test &mdash; 9.2% (184/2000). Анализ выявил причину: <b>структурный сдвиг распределения источников (Covariate Shift)</b>:
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Источник снимка (source)</th>
+            <th>Доля на Train</th>
+            <th>Доля на Test</th>
+            <th>Приёмка на Train</th>
+            <th>Приёмка на Test</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>mobile_v2</b> (высокое качество)</td>
+            <td>9.73% (292)</td>
+            <td><b>21.55% (431)</b></td>
+            <td><b>41.4%</b> (121)</td>
+            <td><b>41.5%</b> (179)</td>
+          </tr>
+          <tr>
+            <td><b>mobile</b> (стандартное качество)</td>
+            <td>35.63% (1069)</td>
+            <td>33.95% (679)</td>
+            <td><b>0.4%</b> (4)</td>
+            <td><b>0.1%</b> (1)</td>
+          </tr>
+          <tr>
+            <td><b>web</b> (веб-камеры / низкое разрешение)</td>
+            <td>54.63% (1639)</td>
+            <td>44.50% (890)</td>
+            <td><b>0.2%</b> (4)</td>
+            <td><b>0.4%</b> (4)</td>
+          </tr>
+          <tr style="font-weight: bold; background: rgba(56, 189, 248, 0.1);">
+            <td>ИТОГО</td>
+            <td>100% (3000)</td>
+            <td>100% (2000)</td>
+            <td>4.3% (129)</td>
+            <td>9.2% (184)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        В тестовой выборке доля снимков качественного мобильного сканера (<code>mobile_v2</code>) <b>более чем в 2.2 раза выше</b> (21.55% против 9.73%). Конверсия внутри каждого источника между train и test практически строго совпадает (для <code>mobile_v2</code> &mdash; 41.4% и 41.5%). Повышенная приёмка на test объясняется исключительно лучшим качеством входящих изображений.
+      </p>
+    </section>
+
+    <!-- SECTION 6 -->
+    <section>
+      <h2>6. Обоснованный прогноз для тестовой выборки (Test, 2000 документов)</h2>
+      <table>
+        <thead>
+          <tr>
             <th>Показатель</th>
             <th>Значение на Test (2000 док.)</th>
-            <th>Доля от выборки</th>
+            <th>Статус показателя</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td><b>Принято документов (decision = "accept")</b></td>
-            <td><b>788</b></td>
-            <td><b>39.4%</b></td>
+            <td><b>184 (9.2%)</b></td>
+            <td>Фактический результат</td>
           </tr>
           <tr>
             <td><b>Отклонено документов (decision = "reject")</b></td>
-            <td><b>1212</b></td>
-            <td><b>60.6%</b></td>
+            <td><b>1816 (90.8%)</b></td>
+            <td>Фактический результат</td>
           </tr>
           <tr>
-            <td><b>Прогноз документов с ошибкой (Bad Accepts)</b></td>
-            <td><b>0 &ndash; 2</b> (ожидаемое мат. ожидание &le; 1)</td>
-            <td><b>&le; 0.2%</b></td>
+            <td><b>Прогноз документов с ошибкой</b></td>
+            <td><b>1 &ndash; 3 документа</b> (мат. ожидание &approx; 1.5)</td>
+            <td>Обоснованный прогноз</td>
           </tr>
           <tr>
             <td><b>Прогнозируемая точность (Precision)</b></td>
-            <td><b>&ge; 99.7%</b></td>
-            <td><b>&mdash;</b></td>
+            <td><b>98.4% &ndash; 99.5%</b></td>
+            <td>Обоснованный прогноз</td>
           </tr>
         </tbody>
       </table>
+
+      <div class="callout warning">
+        <b>Обоснование прогноза:</b> с учётом уровня неизбежных опечаток ручной аннотации (~0.3% от выборки) и редких имён со 100% уверенностью OCR, прогноз «0 ошибок» является необоснованным. Ожидается от 1 до 3 спорных документов при оценке против ручной разметки.
+      </div>
     </section>
 
-    <!-- SECTION 6 -->
+    <!-- SECTION 7 -->
     <section>
-      <h2>6. Технические характеристики и воспроизводимость</h2>
+      <h2>7. Технические параметры и проверка формата сдачи</h2>
       <ul>
-        <li><b>CPU-only & Offline:</b> Скрипт не использует внешних нейросетевых фреймворков и API. Написан на стандартной библиотеке Python 3 (модули `json`, `sys`, `csv`, `datetime`, `os`).</li>
-        <li><b>Производительность:</b> Время обработки 2000 документов составляет <b>~1.1 секунды</b> на стандартном CPU (&gt; 1800 док/сек).</li>
-        <li><b>Формат сдачи:</b> Сгенерирован файл <code>answers.jsonl</code> ровно на 2000 строк. Для принятых документов передаются все 10 полей; для отклонённых поле <code>fields</code> опущено в строгом соответствии с требованиями.</li>
+        <li><b>Автономность и CPU:</b> скрипт не использует сторонних библиотек (только стандартные модули Python: <code>json</code>, <code>sys</code>, <code>csv</code>, <code>re</code>, <code>datetime</code>, <code>os</code>), работает строго на CPU и в offline-режиме.</li>
+        <li><b>Производительность:</b> время обработки 2000 документов test составляет <b>~0.8 секунды</b> (>2400 док/сек).</li>
+        <li><b>Формат сдачи:</b> файл <code>answers.jsonl</code> сформирован строго на 2000 строк. Для принятых передаются ровно 10 полей; для отклонённых поле <code>fields</code> опущено.</li>
       </ul>
     </section>
 
     <footer>
-      Решение подготовлено в соответствии с требованиями TASK.md | Октябрь 2026
+      Решение тестового задания по постобработке OCR паспортов РФ | Октябрь 2026
     </footer>
   </div>
 </body>

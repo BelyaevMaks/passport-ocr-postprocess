@@ -5,13 +5,22 @@ Usage: python postprocess.py <input_predictions.jsonl> <output_answers.jsonl>
 
 - Runs purely on CPU, zero external dependencies (Python standard library only).
 - Offline-ready: uses local reference/subdivisions.csv.
-- Highly conservative guardrails to guarantee near 100% precision.
+- Multi-tier conservative guardrails prioritizing zero field error rate:
+  1. ICAO Doc 9303 line 2 format & 4 independent checksums (100% mathematical verification).
+  2. Passport legal validity on reference date 01.10.2026 (14/20/45 age replacement rules).
+  3. Strict MRZ line 1 character confidence (>= 0.995) to prevent noisy name matching.
+  4. Visual names OCR confidence (>= 0.985) and cross-validation against MRZ Line 1 transliteration.
+  5. Multi-line geometry checks detecting line truncation or missing lines.
+  6. High-confidence character thresholds for multi-line fields (Birth_place_ru >= 0.9985, Issue_org >= 0.985).
+  7. Subdivisions code lookup and reference vocabulary validation for Issue_organization_ru.
+  8. Quality guardrails against glare (> 0.12), blur (< 120), and low resolution (< 1200 px).
 """
 
 import sys
 import json
 import csv
 import os
+import re
 from datetime import datetime, date, timedelta
 
 # Fields expected by evaluate.py
@@ -20,6 +29,15 @@ FIELDS = [
     "Birth_place_ru", "Issue_date", "Issue_organisation_code", "Licence_number",
     "Issue_organization_ru"
 ]
+
+# Guardrail Thresholds
+MAX_GLARE = 0.12            # Rejects heavy reflections causing character drops
+MIN_SHARPNESS = 120.0       # Rejects severe blur
+MIN_DOC_PX = 1200           # Rejects low-resolution crops
+MIN_CONF_MRZ_L1 = 0.995     # Character confidence threshold on MRZ transliterated names
+MIN_CONF_NAME = 0.985       # Character confidence threshold on visual Russian names
+MIN_CONF_BP = 0.9985        # Clean confidence on Birth_place_ru to eliminate artifacts/spurious chars
+MIN_CONF_ORG = 0.985        # Character confidence threshold on Issue_organization_ru
 
 # Deterministic Russian Passport MRZ transliteration table (Order of MIA / GOST)
 RU_TO_MRZ = {
@@ -30,8 +48,11 @@ RU_TO_MRZ = {
     'Ы': 'Y', 'Ь': '9', 'Э': '6', 'Ю': '7', 'Я': '8', ' ': '<', '-': '<'
 }
 
-MRZ_TO_RU = {v: k for k, v in RU_TO_MRZ.items() if k not in (' ', '-')}
-MRZ_TO_RU['<'] = ' '
+STANDARD_ADMIN_TOKENS = {
+    'РЕСПУБЛИКЕ', 'РЕСПУБЛИКИ', 'МИГРАЦИОННЫЙ', 'ТЕРРИТОРИАЛЬНЫЙ', 'МЕЖРАЙОННЫЙ',
+    'ГОР', 'ПУНКТ', 'ГОМ', 'ПОМ', 'ВИЗОВОЕ', 'АВТОНОМНОЙ', 'АВТОНОМНОГО', 'РФ',
+    'ОТДЕЛ', 'ОТДЕЛЕНИЕМ', 'ОТДЕЛОМ', 'УПРАВЛЕНИЕМ', 'УПРАВЛЕНИЕ', 'ОТДЕЛЕНИЕ'
+}
 
 def transliterate_ru(text):
     """Convert Russian name to MRZ transliterated uppercase string."""
@@ -149,7 +170,7 @@ def check_lines_geometry(field_val):
             continue
         l_bottom = l_box[1] + l_box[3]
         if idx + 1 < len(lines):
-            next_top = lines[idx+1].get('box', [0,0,0,0])[1]
+            next_top = lines[idx+1].get('box', [0, 0, 0, 0])[1]
             if (next_top - l_bottom) > 18:
                 return False
         else:
@@ -160,24 +181,42 @@ def check_lines_geometry(field_val):
     return True
 
 def load_reference_subdivisions(ref_path):
-    """Load reference subdivision codes into a fast lookup set."""
-    subdiv_set = set()
+    """
+    Load reference subdivision codes and official vocabulary from CSV.
+    Returns:
+      subdiv_codes: set of valid subdivision code strings (e.g. '770-001')
+      subdiv_vocab: set of valid uppercase word tokens appearing in subdivision names
+    """
+    subdiv_codes = set()
+    subdiv_vocab = set(STANDARD_ADMIN_TOKENS)
     if os.path.exists(ref_path):
         with open(ref_path, encoding='utf-8') as f:
             reader = csv.reader(f)
             header = next(reader, None)
             for row in reader:
                 if row:
-                    subdiv_set.add(row[0].strip())
-    return subdiv_set
+                    subdiv_codes.add(row[0].strip())
+                    if len(row) > 1:
+                        tokens = re.findall(r'[А-ЯЁа-яёA-Za-z0-9]+', row[1].upper())
+                        subdiv_vocab.update(tokens)
+    return subdiv_codes, subdiv_vocab
 
-def process_document(doc, subdiv_set, min_char_conf=0.98):
+def process_document(doc, subdiv_codes, subdiv_vocab=None):
     """
     Evaluate single document prediction.
     Returns:
       decision: 'accept' | 'reject'
       fields: dict of 10 fields if accept, else None
     """
+    # Guardrail 0: Overall Image Quality Check
+    q = doc.get('quality') or {}
+    if q.get('glare', 0) > MAX_GLARE:
+        return 'reject', None
+    if q.get('sharpness', 0) < MIN_SHARPNESS:
+        return 'reject', None
+    if q.get('doc_px', 0) < MIN_DOC_PX:
+        return 'reject', None
+
     viz = doc.get('viz') or {}
     mrz = doc.get('mrz')
 
@@ -198,15 +237,28 @@ def process_document(doc, subdiv_set, min_char_conf=0.98):
         return 'reject', None
 
     # Guardrail 3: Subdivision code existence in reference
-    if subdiv_set and code not in subdiv_set:
+    if subdiv_codes and code not in subdiv_codes:
         return 'reject', None
 
-    # Guardrail 4: Names cross-validation against MRZ Line 1
+    # Guardrail 4: MRZ Line 1 character confidence check
+    l1_confs = mrz['lines'][0].get('char_conf', [])
+    if not l1_confs or min(l1_confs) < MIN_CONF_MRZ_L1:
+        return 'reject', None
+
+    # Guardrail 5: Names cross-validation against MRZ Line 1
     v_last = ' '.join(l.get('text', '') for l in (viz.get('Last_name_ru') or {}).get('lines', []))
     v_first = ' '.join(l.get('text', '') for l in (viz.get('First_name_ru') or {}).get('lines', []))
     v_mid = ' '.join(l.get('text', '') for l in (viz.get('Middle_name_ru') or {}).get('lines', []))
 
     if not v_last or not v_first:
+        return 'reject', None
+
+    # Visual names character confidence check
+    name_confs = []
+    for f in ['Last_name_ru', 'First_name_ru', 'Middle_name_ru']:
+        for l in (viz.get(f) or {}).get('lines', []):
+            name_confs.extend(l.get('char_conf', []))
+    if not name_confs or min(name_confs) < MIN_CONF_NAME:
         return 'reject', None
 
     t_last = transliterate_ru(v_last)
@@ -230,7 +282,7 @@ def process_document(doc, subdiv_set, min_char_conf=0.98):
     if mrz_mid and t_mid != mrz_mid:
         return 'reject', None
 
-    # Guardrail 5: Geometry checks for multi-line fields (Birth_place_ru & Issue_organization_ru)
+    # Guardrail 6: Geometry checks for multi-line fields
     bp_val = viz.get('Birth_place_ru') or {}
     org_val = viz.get('Issue_organization_ru') or {}
 
@@ -240,17 +292,23 @@ def process_document(doc, subdiv_set, min_char_conf=0.98):
     bp_lines = bp_val.get('lines', [])
     org_lines = org_val.get('lines', [])
 
-    # Guardrail 6: High-confidence OCR character threshold
+    # Guardrail 7: High-confidence OCR character threshold
     bp_confs = [c for l in bp_lines for c in l.get('char_conf', [])]
     org_confs = [c for l in org_lines for c in l.get('char_conf', [])]
 
-    if not bp_confs or min(bp_confs) < min_char_conf:
+    if not bp_confs or min(bp_confs) < MIN_CONF_BP:
         return 'reject', None
-    if not org_confs or min(org_confs) < min_char_conf:
+    if not org_confs or min(org_confs) < MIN_CONF_ORG:
         return 'reject', None
 
     bp_text = ' '.join(l.get('text', '') for l in bp_lines)
     org_text = ' '.join(l.get('text', '') for l in org_lines)
+
+    # Guardrail 8: Issue organization vocabulary validation against reference
+    if subdiv_vocab:
+        org_tokens = re.findall(r'[А-ЯЁа-яё]+', org_text.upper())
+        if any(t not in subdiv_vocab for t in org_tokens):
+            return 'reject', None
 
     # Build verified 10 fields
     fields = {
@@ -275,7 +333,7 @@ def main(in_path, out_path):
     if not os.path.exists(ref_path):
         ref_path = os.path.join('reference', 'subdivisions.csv')
 
-    subdiv_set = load_reference_subdivisions(ref_path)
+    subdiv_codes, subdiv_vocab = load_reference_subdivisions(ref_path)
 
     accepted_cnt = 0
     rejected_cnt = 0
@@ -287,7 +345,7 @@ def main(in_path, out_path):
                 continue
             doc = json.loads(line)
             doc_id = doc['doc_id']
-            decision, fields = process_document(doc, subdiv_set)
+            decision, fields = process_document(doc, subdiv_codes, subdiv_vocab)
 
             if decision == 'accept':
                 record = {'doc_id': doc_id, 'decision': 'accept', 'fields': fields}
