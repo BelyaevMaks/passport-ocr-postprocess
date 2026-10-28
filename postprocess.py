@@ -144,7 +144,7 @@ def check_lines_geometry(field_val):
     """
     Detect missing lines (truncation) by checking box dimensions and gap margins.
     """
-    box = field_val.get('box', [0, 0, 0, 0])
+    box = field_val.get('box') or [0, 0, 0, 0]
     lines = field_val.get('lines', [])
     if not lines:
         return False
@@ -277,9 +277,7 @@ def process_document(doc, subdiv_codes, subdiv_vocab=None):
     mrz_first = mrz_rest[0]
     mrz_mid = mrz_rest[1] if len(mrz_rest) > 1 else ''
 
-    if t_last != mrz_last or t_first != mrz_first:
-        return 'reject', None
-    if mrz_mid and t_mid != mrz_mid:
+    if t_last != mrz_last or t_first != mrz_first or t_mid != mrz_mid:
         return 'reject', None
 
     # Guardrail 6: Geometry checks for multi-line fields
